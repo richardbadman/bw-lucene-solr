@@ -425,18 +425,27 @@ public final class SolrCore implements SolrInfoBean, SolrMetricProducer, Closeab
   public IndexReaderFactory getIndexReaderFactory() {
     return indexReaderFactory;
   }
-  
-  public long getIndexSize() {
-    Directory dir;
-    long size = 0;
+
+  public Directory getDirectory() {
+    Directory dir = null;
     try {
       if (directoryFactory.exists(getIndexDir())) {
         dir = directoryFactory.get(getIndexDir(), DirContext.DEFAULT, solrConfig.indexConfig.lockType);
-        try {
-          size = DirectoryFactory.sizeOfDirectory(dir);
-        } finally {
-          directoryFactory.release(dir);
-        }
+      }
+    } catch (IOException e) {
+      SolrException.log(log, "IO error while trying to get the Directory", e);
+    }
+    return dir;
+  }
+
+  public long getIndexSize() {
+    Directory dir = getDirectory();
+    long size = 0;
+    try {
+      try {
+        size = DirectoryFactory.sizeOfDirectory(dir);
+      } finally {
+        directoryFactory.release(dir);
       }
     } catch (IOException e) {
       SolrException.log(log, "IO error while trying to get the size of the Directory", e);

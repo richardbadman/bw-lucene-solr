@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.lucene.index.DirectoryReader;
 import org.apache.solr.cloud.CloudDescriptor;
 import org.apache.solr.cloud.ZkController;
 import org.apache.solr.common.SolrException;
@@ -35,6 +36,7 @@ import org.apache.solr.common.util.SimpleOrderedMap;
 import org.apache.solr.common.util.Utils;
 import org.apache.solr.core.CoreContainer;
 import org.apache.solr.core.CoreDescriptor;
+import org.apache.solr.core.IndexReaderFactory;
 import org.apache.solr.core.SolrCore;
 import org.apache.solr.core.SolrInfoBean;
 import org.apache.solr.core.snapshots.SolrSnapshotManager;
@@ -336,15 +338,13 @@ enum CoreAdminOperation implements CoreAdminOp {
               info.add("cloud", cloudInfo);
             }
             if (isIndexInfoNeeded) {
-              RefCounted<SolrIndexSearcher> searcher = core.getSearcher();
-              try {
-                SimpleOrderedMap<Object> indexInfo = LukeRequestHandler.getIndexInfo(searcher.get().getIndexReader());
-                long size = core.getIndexSize();
+              IndexReaderFactory indexReaderFactory = core.getIndexReaderFactory();
+              try (DirectoryReader dirReader = indexReaderFactory.newReader(core.getDirectory(), core)) {
+                SimpleOrderedMap<Object> indexInfo = LukeRequestHandler.getIndexInfo(dirReader);
+                long size = core.getDirectoryFactory().size(core.getDirectory());
                 indexInfo.add("sizeInBytes", size);
                 indexInfo.add("size", NumberUtils.readableSize(size));
                 info.add("index", indexInfo);
-              } finally {
-                searcher.decref();
               }
             }
           }
