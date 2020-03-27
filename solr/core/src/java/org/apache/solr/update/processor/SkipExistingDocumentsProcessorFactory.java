@@ -132,11 +132,6 @@ public class SkipExistingDocumentsProcessorFactory extends UpdateRequestProcesso
 
   @Override
   public void inform(SolrCore core) {
-
-    if (core.getUpdateHandler().getUpdateLog() == null) {
-      throw new SolrException(SERVER_ERROR, "updateLog must be enabled.");
-    }
-
     if (core.getLatestSchema().getUniqueKeyField() == null) {
       throw new SolrException(SERVER_ERROR, "schema must have uniqueKey defined.");
     }
