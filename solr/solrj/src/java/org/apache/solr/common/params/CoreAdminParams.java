@@ -30,6 +30,9 @@ public abstract class CoreAdminParams
 
   /** Should the STATUS request include index info **/
   public final static String INDEX_INFO = "indexInfo";
+
+  /** Should the STATUS request ignore index info for cores in recovery **/
+  public final static String HIDE_RECOVERY = "hideRecovery";
   
   /** If you rename something, what is the new name **/
   public final static String NAME = "name";

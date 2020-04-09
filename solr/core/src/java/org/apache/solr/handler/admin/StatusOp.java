@@ -36,6 +36,8 @@ class StatusOp implements CoreAdminHandler.CoreAdminOp {
     String cname = params.get(CoreAdminParams.CORE);
     String indexInfo = params.get(CoreAdminParams.INDEX_INFO);
     boolean isIndexInfoNeeded = Boolean.parseBoolean(null == indexInfo ? "true" : indexInfo);
+    String hideRecovery = params.get(CoreAdminParams.HIDE_RECOVERY);
+    boolean skipIfInRecovery = Boolean.parseBoolean(null == hideRecovery ? "false" : hideRecovery);
     NamedList<Object> status = new SimpleOrderedMap<>();
     Map<String, Exception> failures = new HashMap<>();
     for (Map.Entry<String, CoreContainer.CoreLoadFailure> failure : it.handler.coreContainer.getCoreInitFailures().entrySet()) {
@@ -43,7 +45,7 @@ class StatusOp implements CoreAdminHandler.CoreAdminOp {
     }
     if (cname == null) {
       for (String name : it.handler.coreContainer.getAllCoreNames()) {
-        status.add(name, CoreAdminOperation.getCoreStatus(it.handler.coreContainer, name, isIndexInfoNeeded));
+        status.add(name, CoreAdminOperation.getCoreStatus(it.handler.coreContainer, name, isIndexInfoNeeded, skipIfInRecovery));
       }
       it.rsp.add("initFailures", failures);
     } else {
@@ -51,7 +53,7 @@ class StatusOp implements CoreAdminHandler.CoreAdminOp {
           ? Collections.singletonMap(cname, failures.get(cname))
               : Collections.<String, Exception>emptyMap();
           it.rsp.add("initFailures", failures);
-          status.add(cname, CoreAdminOperation.getCoreStatus(it.handler.coreContainer, cname, isIndexInfoNeeded));
+          status.add(cname, CoreAdminOperation.getCoreStatus(it.handler.coreContainer, cname, isIndexInfoNeeded, skipIfInRecovery));
     }
     it.rsp.add("status", status);
   }

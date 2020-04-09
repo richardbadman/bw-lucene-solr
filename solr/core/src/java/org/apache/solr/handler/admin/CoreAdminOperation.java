@@ -293,7 +293,7 @@ enum CoreAdminOperation implements CoreAdminOp {
    * @return - a named list of key/value pairs from the core.
    * @throws IOException - LukeRequestHandler can throw an I/O exception
    */
-  static NamedList<Object> getCoreStatus(CoreContainer cores, String cname, boolean isIndexInfoNeeded) throws IOException {
+  static NamedList<Object> getCoreStatus(CoreContainer cores, String cname, boolean isIndexInfoNeeded, boolean skipIfInRecovery) throws IOException {
     NamedList<Object> info = new SimpleOrderedMap<>();
 
     if (cores.isCoreLoading(cname)) {
@@ -335,7 +335,7 @@ enum CoreAdminOperation implements CoreAdminOp {
               cloudInfo.add(REPLICA, core.getCoreDescriptor().getCloudDescriptor().getCoreNodeName());
               info.add("cloud", cloudInfo);
             }
-            if (isIndexInfoNeeded) {
+            if (isIndexInfoNeeded && !skipIfInRecovery || isIndexInfoNeeded && skipIfInRecovery && !info.get("lastPublished").equals("recovering")) {
               RefCounted<SolrIndexSearcher> searcher = core.getSearcher();
               try {
                 SimpleOrderedMap<Object> indexInfo = LukeRequestHandler.getIndexInfo(searcher.get().getIndexReader());
