@@ -17,7 +17,9 @@
 
 package org.apache.solr.handler.admin;
 
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
@@ -49,6 +51,8 @@ import org.apache.solr.response.SolrQueryResponse;
 import org.apache.solr.security.AuthorizationContext;
 import org.apache.solr.security.PermissionNameProvider;
 import org.apache.solr.util.stats.MetricUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Request handler to return metrics
@@ -70,6 +74,8 @@ public class MetricsHandler extends RequestHandlerBase implements PermissionName
   private static final Pattern KEY_REGEX = Pattern.compile("(?<!" + Pattern.quote("\\") + ")" + Pattern.quote(":"));
   private CoreContainer cc;
 
+  private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
   public MetricsHandler() {
     this.metricManager = null;
   }
@@ -90,6 +96,10 @@ public class MetricsHandler extends RequestHandlerBase implements PermissionName
 
   @Override
   public void handleRequestBody(SolrQueryRequest req, SolrQueryResponse rsp) throws Exception {
+    // [1] Request: {path=/admin/metrics, httpMethod=GET, org.apache.solr.core.CoreContainer=org.apache.solr.core.CoreContainer@4f704591}-group=core
+    // [2] Request: {path=/admin/metrics, httpMethod=POST, org.apache.solr.core.CoreContainer=org.apache.solr.core.CoreContainer@4f704591}-wt=javabin&version=2&key=solr.core.mentions_20170410_20170416_1w
+    //.shard7.replica_n27:UPDATE./update.requests ...
+    log.info("Request: {}-{}", req.getContext(), req.getParams());
     if (metricManager == null) {
       throw new SolrException(SolrException.ErrorCode.INVALID_STATE, "SolrMetricManager instance not initialized");
     }
@@ -104,10 +114,14 @@ public class MetricsHandler extends RequestHandlerBase implements PermissionName
   public void handleRequest(SolrParams params, BiConsumer<String, Object> consumer) throws Exception {
     boolean compact = params.getBool(COMPACT_PARAM, true);
     String[] keys = params.getParams(KEY_PARAM);
+    // [1] Solr params: {}
+    // [2] Solr params: solr.core.mentions_20170410_20170416_1w.shard7.replica_n27:UPDATE./update.requests
+    log.info("Solr params: {}", keys);
     if (keys != null && keys.length > 0) {
       handleKeyRequest(keys, consumer);
       return;
     }
+
     MetricFilter mustMatchFilter = parseMustMatchFilter(params);
     MetricUtils.PropertyFilter propertyFilter = parsePropertyFilter(params);
     List<MetricType> metricTypes = parseMetricTypes(params);
@@ -115,11 +129,17 @@ public class MetricsHandler extends RequestHandlerBase implements PermissionName
     Set<String> requestedRegistries = parseRegistries(params);
 
     NamedList response = new SimpleOrderedMap();
+    // [1] [core]
     for (String registryName : requestedRegistries) {
       MetricRegistry registry = metricManager.registry(registryName);
       SimpleOrderedMap result = new SimpleOrderedMap();
       MetricUtils.toMaps(registry, metricFilters, mustMatchFilter, propertyFilter, false,
           false, compact, false, (k, v) -> result.add(k, v));
+      // My prediction, is in here a "result" is the 500 error?
+      log.info("Rich - size of result: {}", result.size());
+      for(Object entry : result ) {
+        log.info("Rich: erm {}", entry.toString());
+      }
       if (result.size() > 0) {
         response.add(registryName, result);
       }
@@ -128,6 +148,7 @@ public class MetricsHandler extends RequestHandlerBase implements PermissionName
   }
 
   public void handleKeyRequest(String[] keys, BiConsumer<String, Object> consumer) throws Exception {
+    log.info("Entered handleKeyRequest method");
     SimpleOrderedMap result = new SimpleOrderedMap();
     SimpleOrderedMap errors = new SimpleOrderedMap();
     for (String key : keys) {
@@ -139,6 +160,9 @@ public class MetricsHandler extends RequestHandlerBase implements PermissionName
         errors.add(key, "at least two and at most three colon-separated parts must be provided");
         continue;
       }
+
+      // [2] Rich - parts: [solr.core.mentions_20170410_20170416_1w.shard7.replica_n27, UPDATE./update.requests]
+      log.info("Rich - parts: {}", Arrays.toString(parts));
       final String registryName = unescape(parts[0]);
       final String metricName = unescape(parts[1]);
       final String propertyName = parts.length > 2 ? unescape(parts[2]) : null;

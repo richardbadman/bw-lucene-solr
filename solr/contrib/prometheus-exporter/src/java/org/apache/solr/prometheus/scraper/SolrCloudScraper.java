@@ -17,6 +17,7 @@
 package org.apache.solr.prometheus.scraper;
 
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -37,17 +38,16 @@ import org.apache.solr.common.util.Pair;
 import org.apache.solr.prometheus.collector.MetricSamples;
 import org.apache.solr.prometheus.exporter.MetricsQuery;
 import org.apache.solr.prometheus.exporter.SolrClientFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SolrCloudScraper extends SolrScraper {
 
   private final CloudSolrClient solrClient;
   private final SolrClientFactory solrClientFactory;
+  private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  private Cache<String, HttpSolrClient> hostClientCache = CacheBuilder.newBuilder()
-      .maximumSize(100)
-      .removalListener((RemovalListener<String, HttpSolrClient>)
-          removalNotification -> IOUtils.closeQuietly(removalNotification.getValue()))
-      .build();
+  private Cache<String, HttpSolrClient> hostClientCache = CacheBuilder.newBuilder().build();
 
   public SolrCloudScraper(CloudSolrClient solrClient, Executor executor, SolrClientFactory solrClientFactory) {
     super(executor);
@@ -118,6 +118,7 @@ public class SolrCloudScraper extends SolrScraper {
       try {
         return request(httpSolrClients.get(baseUrl), query);
       } catch (IOException exception) {
+        log.warn("Hmmmmm .... {}", query.getPath());
         throw new RuntimeException(exception);
       }
     });
