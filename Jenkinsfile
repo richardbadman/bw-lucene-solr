@@ -27,20 +27,34 @@ node('docker') {
         ant_version = versions["ant_version"]
     }
 
+    stage ('Tests') {
+        // NB the solr tests are flakey and take a long time to run
+        // I've opted to skip bad apples (known flakey tests) and the
+        // slow tests to keep things sane for now.  It's better to run
+        // some tests than no tests, but be aware this may compromise
+        // test coverage.
+        sh "ant ivy-bootstrap"
+        sh "ant -Dtests.badapples=false -Dtests.slow=false test"
+    }
+
     stage ('Build images') {
-        withEnv(["DOCKER_BUILDKIT=1"]) {
-            sh """ docker build -f base.Dockerfile \
+        if (env.BRANCH_NAME =~ /^PR-\d+$/) {
+            println "Skipping docker image for PR branch"
+        } else {
+            withEnv(["DOCKER_BUILDKIT=1"]) {
+                sh """ docker build -f base.Dockerfile \
                 --build-arg ANT_VERSION=${ant_version} \
                 -t ${gcpProject}/ant-base:${ant_version} .
-            """
-            pushImage("${gcpProject}/ant-base:${ant_version}", ant_version)
+                """
+                pushImage("${gcpProject}/ant-base:${ant_version}", ant_version)
 
-            sh """ docker build \
+                sh """ docker build \
                 --build-arg REPO=${gcpProject} \
                 --build-arg ANT_VERSION=${ant_version} \
                 -t ${gcpProject}/bw-lucene-solr:${version} .
-            """
-            pushImage("${gcpProject}/bw-lucene-solr:${version}", version)
+                """
+                pushImage("${gcpProject}/bw-lucene-solr:${version}", version)
+            }
         }
     }
 }
